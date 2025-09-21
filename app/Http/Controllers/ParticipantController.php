@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Participant;
 use App\Models\WheelBackground;
+use App\Models\WheelLogo;
 use App\Models\WheelSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,8 +17,10 @@ class ParticipantController extends Controller
     {
         $participants = Participant::with('config')->orderBy('id')->get();
         $backgrounds = WheelBackground::orderBy('created_at', 'desc')->get();
+        $logos = WheelLogo::orderBy('created_at', 'desc')->get();
         $spinDuration = WheelSetting::getSpinDuration();
-        return view('participants.index', compact('participants', 'backgrounds', 'spinDuration'));
+        $displayMode = WheelSetting::getDisplayMode();
+        return view('participants.index', compact('participants', 'backgrounds', 'logos', 'spinDuration', 'displayMode'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -213,7 +216,7 @@ class ParticipantController extends Controller
         }
     }
 
-    public function setActiveBackground(WheelBackground $background): RedirectResponse
+    public function activateBackground(WheelBackground $background): RedirectResponse
     {
         try {
             $background->setActive();
@@ -251,6 +254,74 @@ class ParticipantController extends Controller
             return back()->with('status', 'Spin duration updated successfully!');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to update spin duration: ' . $e->getMessage());
+        }
+    }
+
+    public function updateDisplayMode(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'display_mode' => 'required|in:wheel,rolling,both',
+        ]);
+
+        try {
+            WheelSetting::setDisplayMode($request->display_mode);
+            return back()->with('status', 'Display mode updated successfully!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to update display mode: ' . $e->getMessage());
+        }
+    }
+
+    public function uploadLogo(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'logo_image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'logo_name' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            // Store the uploaded file
+            $path = $request->file('logo_image')->store('wheel-logos', 'public');
+
+            // Create wheel logo record
+            $logo = WheelLogo::create([
+                'name' => $request->logo_name ?: 'Custom Logo',
+                'image_path' => $path,
+                'is_active' => true,
+            ]);
+
+            // Set this logo as active (deactivates others)
+            $logo->setActive();
+
+            return back()->with('status', 'Logo uploaded and set as active successfully!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to upload logo: ' . $e->getMessage());
+        }
+    }
+
+    public function activateLogo(WheelLogo $logo): RedirectResponse
+    {
+        try {
+            $logo->setActive();
+            return back()->with('status', 'Logo set as active successfully!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to set logo as active: ' . $e->getMessage());
+        }
+    }
+
+    public function deleteLogo(WheelLogo $logo): RedirectResponse
+    {
+        try {
+            // Delete the file from storage
+            if (Storage::disk('public')->exists($logo->image_path)) {
+                Storage::disk('public')->delete($logo->image_path);
+            }
+
+            // Delete the database record
+            $logo->delete();
+
+            return back()->with('status', 'Logo deleted successfully!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to delete logo: ' . $e->getMessage());
         }
     }
 }

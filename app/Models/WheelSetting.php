@@ -49,4 +49,20 @@ class WheelSetting extends Model
     {
         return static::setValue('spin_duration', $duration);
     }
+
+    /**
+     * Get display mode setting
+     */
+    public static function getDisplayMode()
+    {
+        return static::getValue('display_mode', 'both');
+    }
+
+    /**
+     * Set display mode setting
+     */
+    public static function setDisplayMode($mode)
+    {
+        return static::setValue('display_mode', $mode);
+    }
 }
