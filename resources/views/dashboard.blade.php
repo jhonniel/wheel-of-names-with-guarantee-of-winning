@@ -157,6 +157,7 @@
         <div class="header-actions">
             <a href="/">View Wheel</a>
             <a href="/participants">Manage Participants</a>
+            <a href="/winners">View Winners</a>
             <a href="{{ route('register') }}">Create Admin</a>
             <form method="POST" action="{{ route('logout') }}" class="logout-form">
                 @csrf
@@ -172,6 +173,7 @@
                 <h3>Quick Actions</h3>
                 <a href="/" class="action-button blue">🎯 View Wheel</a>
                 <a href="/participants" class="action-button green">⚙️ Manage Participants</a>
+                <a href="/winners" class="action-button" style="background: #ffc107; color: #212529; margin-bottom: 0.5rem;">🏆 View Winners</a>
                 <a href="{{ route('register') }}" class="action-button" style="background: #6f42c1; color: white; margin-bottom: 0.5rem;">👤 Create New Admin</a>
             </div>
 
@@ -189,6 +191,10 @@
                 <div class="stat-item">
                     <span class="stat-label">Total Spins:</span>
                     <span class="stat-value">{{ \App\Models\Spin::count() }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Recorded Winners:</span>
+                    <span class="stat-value">{{ \App\Models\Winner::count() }}</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">Spin Duration:</span>

@@ -76,9 +76,29 @@
             border-radius: 50%;
             box-shadow: 0 15px 30px rgba(0,0,0,0.2);
         }
+        .wheel-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .wheel-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
     </style>
     @csrf
-    @routes
 </head>
 <body>
     @if (session('status'))
@@ -91,36 +111,26 @@
             {{ session('error') }}
         </div>
     @endif
-    <div class="rolling-box"><span id="rollerText" class="rolling-text"></span></div>
-    <div class="wheel-container">
-        <svg id="wheel" viewBox="-210 -210 420 420"></svg>
-        <div id="winnerArrow" class="winner-arrow" style="display: none;"></div>
-    </div>
+    @if($displayMode === 'rolling' || $displayMode === 'both')
+        <div class="rolling-box"><span id="rollerText" class="rolling-text"></span></div>
+    @endif
+
+    @if($displayMode === 'wheel' || $displayMode === 'both')
+        <div class="wheel-container">
+            <svg id="wheel" viewBox="-210 -210 420 420"></svg>
+            @if($activeLogo)
+                <div class="wheel-logo">
+                    <img src="{{ asset('storage/' . $activeLogo->image_path) }}" alt="{{ $activeLogo->name }}" />
+                </div>
+            @endif
+            <div id="winnerArrow" class="winner-arrow" style="display: none;"></div>
+        </div>
+    @endif
     <div>
         <button id="spinBtn">Spin</button>
         <span id="winnerLabel"></span>
     </div>
 
-    <div style="margin-top: 20px; text-align: center;">
-        @auth
-            <a href="/participants" style="color: #2196F3; text-decoration: none; font-weight: 600; padding: 8px 16px; border: 2px solid #2196F3; border-radius: 6px; display: inline-block; transition: all 0.3s ease; margin-right: 10px;">
-                ⚙️ Configure Participants & Spin Duration
-            </a>
-            <a href="/dashboard" style="color: #28a745; text-decoration: none; font-weight: 600; padding: 8px 16px; border: 2px solid #28a745; border-radius: 6px; display: inline-block; transition: all 0.3s ease; margin-right: 10px;">
-                📊 Dashboard
-            </a>
-            <form method="POST" action="{{ route('logout') }}" style="display: inline;">
-                @csrf
-                <button type="submit" style="color: #dc3545; text-decoration: none; font-weight: 600; padding: 8px 16px; border: 2px solid #dc3545; border-radius: 6px; background: none; cursor: pointer; transition: all 0.3s ease;">
-                    🚪 Logout
-                </button>
-            </form>
-        @else
-            <a href="{{ route('login') }}" style="color: #2196F3; text-decoration: none; font-weight: 600; padding: 8px 16px; border: 2px solid #2196F3; border-radius: 6px; display: inline-block; transition: all 0.3s ease;">
-                🔐 Login to Configure
-            </a>
-        @endauth
-    </div>
 
     <!-- Countdown Timer -->
     <div id="countdownTimer" style="display: none; margin-top: 16px; text-align: center;">
@@ -134,8 +144,7 @@
         <div class="winner-content">
             <div class="winner-name" id="winnerName"></div>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button onclick="deleteWinner()" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Delete Winner</button>
-                <button onclick="keepWinner()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Keep Winner</button>
+                <button onclick="recordWinner()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Record Winner & Remove from Participants</button>
                 <button onclick="closeWinnerModal()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Close</button>
             </div>
         </div>
@@ -146,6 +155,7 @@ const spinBtn = document.getElementById('spinBtn');
 const winnerLabel = document.getElementById('winnerLabel');
 const rollerText = document.getElementById('rollerText');
 const rollingBox = document.querySelector('.rolling-box');
+const displayMode = '{{ $displayMode }}';
 
 let segments = [];
 let currentRotation = 0;
@@ -164,7 +174,7 @@ async function fetchSegments() {
     updateWheelSize();
     renderWheel();
     // Initialize roller with random name if available
-    if (segments.length) {
+    if (segments.length && rollerText) {
       const randomIndex = Math.floor(Math.random() * segments.length);
       rollerText.textContent = segments[randomIndex].label;
     }
@@ -175,6 +185,8 @@ async function fetchSegments() {
 
 
 function updateWheelSize() {
+  if (!wheel) return; // Exit if wheel doesn't exist (rolling only mode)
+
   const n = Math.max(1, segments.length);
   const minSize = 400;
   const maxSize = Math.min(800, window.innerWidth * 0.8, window.innerHeight * 0.7);
@@ -198,7 +210,6 @@ function updateWheelSize() {
   size = Math.max(minSize, Math.min(maxSize, size));
   console.log('Wheel size calculated:', size, 'for', n, 'segments');
 
-  const wheel = document.getElementById('wheel');
   wheel.style.width = size + 'px';
   wheel.style.height = size + 'px';
 
@@ -208,6 +219,8 @@ function updateWheelSize() {
 }
 
 function renderWheel() {
+  if (!wheel) return; // Exit if wheel doesn't exist (rolling only mode)
+
   console.log('Rendering wheel with', segments.length, 'segments');
   wheel.innerHTML = '';
   const n = Math.max(1, segments.length);
@@ -309,14 +322,18 @@ function startRolling() {
 
   // Start with a random segment
   rollingIndex = Math.floor(Math.random() * segments.length);
-  rollerText.textContent = segments[rollingIndex].label;
+  if (rollerText) {
+    rollerText.textContent = segments[rollingIndex].label;
+  }
 
   // Start with slow rolling
   let rollingSpeed = 200; // Start slow
   rollingTimer = setInterval(() => {
     if (segments.length === 0) return;
     rollingIndex = (rollingIndex + 1) % segments.length;
-    rollerText.textContent = segments[rollingIndex].label;
+    if (rollerText) {
+      rollerText.textContent = segments[rollingIndex].label;
+    }
   }, rollingSpeed);
 }
 
@@ -325,17 +342,25 @@ function stopRolling(winner) {
     clearInterval(rollingTimer);
     rollingTimer = null;
   }
-  rollerText.textContent = winner?.label || '';
+  if (rollerText) {
+    rollerText.textContent = winner?.label || '';
+  }
 
-  // Add zoom animation to rolling box
-  if (winner) {
+  // Add zoom animation to rolling box (only if rolling box exists)
+  if (winner && rollingBox) {
     rollingBox.classList.add('zoom');
-    rollerText.classList.add('zoom');
+    if (rollerText) {
+      rollerText.classList.add('zoom');
+    }
 
     // Remove zoom after animation
     setTimeout(() => {
-      rollingBox.classList.remove('zoom');
-      rollerText.classList.remove('zoom');
+      if (rollingBox) {
+        rollingBox.classList.remove('zoom');
+      }
+      if (rollerText) {
+        rollerText.classList.remove('zoom');
+      }
     }, 300);
   }
 }
@@ -379,7 +404,7 @@ function stopCountdown() {
   countdownElement.style.display = 'none';
 }
 
-function createRealisticSpeedCurve(duration, targetRotation) {
+function createRealisticSpeedCurve(duration, targetRotation, winnerData) {
   const totalDuration = duration * 1000; // Convert to milliseconds
   const fastPhase = totalDuration * 0.6; // 60% - fast spinning
   const slowPhase = totalDuration * 0.4; // 40% - slowing down
@@ -399,25 +424,19 @@ function createRealisticSpeedCurve(duration, targetRotation) {
     const easedProgress = easeInOutCubic(progress);
     const currentRot = startRotation + (targetRotation - startRotation) * easedProgress;
 
-    // During fast spinning phase, cycle through names rapidly
-    if (progress < 0.9) {
-      // Fast cycling through all names like wheelofnames.com
-      rollingIndex = (rollingIndex + 1) % segments.length;
-      rollerText.textContent = segments[rollingIndex].label;
-    } else {
-      // In final phase, show the actual segment the pointer is pointing to
-      const normalizedAngle = (currentRot % 360 + 360) % 360;
-      const segmentAngle = 360 / segments.length;
-
-      // Calculate which segment the pointer is pointing to
-      // The pointer is at the right side (90 degrees), so we need to find which segment is at 90 degrees
-      const pointerAngle = (normalizedAngle + 90) % 360;
-      const currentSegmentIndex = Math.floor(pointerAngle / segmentAngle) % segments.length;
-
-      if (segments[currentSegmentIndex]) {
-        rollerText.textContent = segments[currentSegmentIndex].label;
+      // During fast spinning phase, cycle through names rapidly
+      if (progress < 0.9) {
+        // Fast cycling through all names like wheelofnames.com
+        rollingIndex = (rollingIndex + 1) % segments.length;
+        if (rollerText) {
+          rollerText.textContent = segments[rollingIndex].label;
+        }
+      } else {
+        // In final phase, show the winner determined by the backend
+        if (winnerData && winnerData.winner && winnerData.winner.label && rollerText) {
+          rollerText.textContent = winnerData.winner.label;
+        }
       }
-    }
   }
 
   // Start immediately with very fast updates for rolling effect like wheelofnames.com
@@ -451,22 +470,19 @@ function createRealisticSpeedCurve(duration, targetRotation) {
   }, fastPhase + slowPhase * 0.3); // Start final slowdown at 70% of total time
 
   // Stop rolling timer at exactly the same time as CSS transition
+  // Add a small buffer to ensure the wheel has fully stopped
   setTimeout(() => {
     if (rollingTimer) {
       clearInterval(rollingTimer);
       rollingTimer = null;
     }
 
-    // Ensure the final rolling text shows the correct winner
-    const normalizedAngle = (targetRotation % 360 + 360) % 360;
-    const segmentAngle = 360 / segments.length;
-    const pointerAngle = (normalizedAngle + 90) % 360;
-    const finalSegmentIndex = Math.floor(pointerAngle / segmentAngle) % segments.length;
-
-    if (segments[finalSegmentIndex]) {
-      rollerText.textContent = segments[finalSegmentIndex].label;
+    // Ensure the final rolling text shows the correct winner from backend
+    // Use the winner that was already determined by the backend instead of calculating
+    if (winnerData && winnerData.winner && winnerData.winner.label && rollerText) {
+      rollerText.textContent = winnerData.winner.label;
     }
-  }, totalDuration);
+  }, totalDuration + 50); // Add 50ms buffer to ensure wheel has stopped
 }
 
 function easeInOutCubic(t) {
@@ -490,15 +506,18 @@ async function spin() {
   currentRotation = currentRotation + spins + targetAngle; // Positive for clockwise rotation
 
   // Start realistic speed curve animation for rolling names (this handles all rolling)
-  createRealisticSpeedCurve(currentSpinDuration, currentRotation);
+  createRealisticSpeedCurve(currentSpinDuration, currentRotation, data);
 
   // Start countdown timer
   startCountdown(currentSpinDuration);
 
   // Apply wheel rotation (clockwise) - CSS transition handles the animation
-  wheel.style.transform = `rotate(${currentRotation - 90}deg)`;
+  if (wheel) {
+    wheel.style.transform = `rotate(${currentRotation - 90}deg)`;
+  }
 
   // Stop rolling animation at exactly the same time the wheel stops
+  // Add buffer to match the rolling timer buffer
   setTimeout(() => {
     winnerLabel.textContent = `Winner: ${data.winner?.label ?? ''}`;
     currentWinner = data.winner;
@@ -506,16 +525,18 @@ async function spin() {
 
     // Show winner modal after a brief delay to ensure wheel and rolling have fully stopped
     setTimeout(() => {
-      // Add a brief visual pause to show the final result
-      rollerText.style.fontWeight = 'bold';
-      rollerText.style.color = '#ff6b35';
+      // Add a brief visual pause to show the final result (only if rolling text exists)
+      if (rollerText) {
+        rollerText.style.fontWeight = 'bold';
+        rollerText.style.color = '#ff6b35';
+      }
 
       setTimeout(() => {
         showWinner(data.winner, idx);
         spinBtn.disabled = false;
       }, 300); // Additional 300ms to show the final result clearly
     }, 200); // 200ms delay to ensure everything has stopped
-  }, currentSpinDuration * 1000);
+  }, currentSpinDuration * 1000 + 50); // Add 50ms buffer to match rolling timer
 }
 
 function showWinner(winner, winnerIndex) {
@@ -524,8 +545,8 @@ function showWinner(winner, winnerIndex) {
   document.getElementById('winnerName').style.color = winner.color;
   document.getElementById('winnerModal').style.display = 'grid';
 
-  // Show arrow pointing to winner
-  if (winnerIndex >= 0) {
+  // Show arrow pointing to winner (only if wheel exists)
+  if (winnerIndex >= 0 && wheel) {
     const n = segments.length;
     const sliceAngle = 360 / n;
     const winnerAngle = (winnerIndex + 0.5) * sliceAngle;
@@ -548,43 +569,49 @@ function showWinner(winner, winnerIndex) {
 
 function closeWinnerModal() {
   document.getElementById('winnerModal').style.display = 'none';
-  document.getElementById('winnerArrow').style.display = 'none';
-}
-
-function deleteWinner() {
-  if (!currentWinner) return;
-
-  if (confirm(`Are you sure you want to permanently delete "${currentWinner.label}" from the participants list?`)) {
-    // Create a form to submit the deletion
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/participants/${currentWinner.id}`;
-    form.style.display = 'none';
-
-    // Add CSRF token
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-    const csrfInput = document.createElement('input');
-    csrfInput.type = 'hidden';
-    csrfInput.name = '_token';
-    csrfInput.value = csrfToken;
-    form.appendChild(csrfInput);
-
-    // Add method spoofing for DELETE
-    const methodInput = document.createElement('input');
-    methodInput.type = 'hidden';
-    methodInput.name = '_method';
-    methodInput.value = 'DELETE';
-    form.appendChild(methodInput);
-
-    // Submit the form
-    document.body.appendChild(form);
-    form.submit();
+  const arrow = document.getElementById('winnerArrow');
+  if (arrow) {
+    arrow.style.display = 'none';
   }
 }
 
-function keepWinner() {
-  // Just close the modal, keeping the winner
-  closeWinnerModal();
+async function recordWinner() {
+  if (!currentWinner) return;
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    const response = await fetch('/winners', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        participant_id: currentWinner.id,
+        winner_name: currentWinner.label,
+        winner_color: currentWinner.color,
+        spin_angle: currentRotation % 360,
+        pool_snapshot: segments
+      })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      alert(result.message || 'Winner recorded successfully!');
+      closeWinnerModal();
+
+      // Refresh the wheel segments to remove the winner from the wheel
+      await fetchSegments();
+    } else {
+      const error = await response.json();
+      alert('Error recording winner: ' + (error.message || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error recording winner:', error);
+    alert('Error recording winner. Please try again.');
+  }
 }
 
 function createConfetti() {

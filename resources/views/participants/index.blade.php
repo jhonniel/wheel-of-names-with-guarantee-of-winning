@@ -69,6 +69,66 @@
         <button type="submit" style="margin-top:8px;">Import Names</button>
     </form>
 
+    <!-- Wheel Logo Upload Section -->
+    <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+        <h3 style="margin-top: 0; margin-bottom: 16px;">Wheel Logo</h3>
+
+        <form method="post" action="/participants/logo/upload" enctype="multipart/form-data" style="margin-bottom: 16px;">
+            @csrf
+            <div class="row">
+                <div>
+                    <label>Upload Logo Image</label>
+                    <input type="file" name="logo_image" accept="image/*" required style="padding: 4px;">
+                </div>
+                <div>
+                    <label>Logo Name (optional)</label>
+                    <input type="text" name="logo_name" placeholder="Custom Logo" style="padding: 6px 8px;">
+                </div>
+                <div>
+                    <button type="submit" style="background: #007bff; color: white;">Upload & Set Active</button>
+                </div>
+            </div>
+        </form>
+
+        @if($logos->count() > 0)
+            <div>
+                <h4 style="margin-bottom: 12px;">Available Logos</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+                    @foreach($logos as $logo)
+                        <div style="border: 1px solid #ddd; border-radius: 6px; padding: 8px; background: white;">
+                            <div style="margin-bottom: 8px;">
+                                <img src="{{ asset('storage/' . $logo->image_path) }}"
+                                     alt="{{ $logo->name }}"
+                                     style="width: 100%; height: 100px; object-fit: contain; border-radius: 4px;">
+                            </div>
+                            <div style="font-weight: 600; margin-bottom: 4px;">{{ $logo->name }}</div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                                @if($logo->is_active)
+                                    <span style="color: #28a745; font-weight: 600;">● Active</span>
+                                @else
+                                    <span style="color: #6c757d;">Inactive</span>
+                                @endif
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                @if(!$logo->is_active)
+                                    <form method="post" action="/participants/logo/{{ $logo->id }}/activate" style="display: inline;">
+                                        @csrf
+                                        <button type="submit" style="padding: 4px 8px; font-size: 12px; background: #28a745; color: white; border: none; border-radius: 4px;">Set Active</button>
+                                    </form>
+                                @endif
+                                <form method="post" action="/participants/logo/{{ $logo->id }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this logo?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" style="padding: 4px 8px; font-size: 12px; background: #dc3545; color: white; border: none; border-radius: 4px;">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    </div>
+
     <!-- Wheel Background Upload Section -->
     <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
         <h3 style="margin-top: 0; margin-bottom: 16px;">Wheel Background</h3>
@@ -146,6 +206,34 @@
             </div>
             <div style="font-size: 12px; color: #666; margin-top: 4px;">
                 Set how many seconds the wheel should spin before stopping (0.3-20 seconds)
+            </div>
+        </form>
+    </div>
+
+    <!-- Display Mode Setting -->
+    <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+        <h3 style="margin-top: 0; margin-bottom: 16px;">Display Mode</h3>
+        <p style="margin-bottom: 16px; color: #666;">Choose what to display on the main page for picking names:</p>
+        <form method="post" action="/participants/display-mode" style="margin-bottom: 16px;">
+            @csrf
+            <div class="row">
+                <div>
+                    <label>Display Mode</label>
+                    <select name="display_mode" style="padding: 6px 8px;">
+                        <option value="both" {{ $displayMode === 'both' ? 'selected' : '' }}>Both Wheel & Rolling Names</option>
+                        <option value="wheel" {{ $displayMode === 'wheel' ? 'selected' : '' }}>Wheel Only</option>
+                        <option value="rolling" {{ $displayMode === 'rolling' ? 'selected' : '' }}>Rolling Names Only</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" style="background: #28a745; color: white;">Update Display Mode</button>
+                </div>
+            </div>
+            <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                <strong>Options:</strong><br>
+                • <strong>Both:</strong> Shows the spinning wheel with rolling names above it<br>
+                • <strong>Wheel Only:</strong> Shows only the spinning wheel without rolling names<br>
+                • <strong>Rolling Names Only:</strong> Shows only the rolling names without the wheel
             </div>
         </form>
     </div>

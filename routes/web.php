@@ -3,13 +3,16 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ParticipantController;
 use App\Http\Controllers\WheelController;
+use App\Http\Controllers\WinnerController;
 use Illuminate\Support\Facades\Route;
 
 // Public wheel route - anyone can view and spin
 Route::get('/', function () {
     $activeBackground = \App\Models\WheelBackground::getActive();
+    $activeLogo = \App\Models\WheelLogo::getActive();
     $spinDuration = \App\Models\WheelSetting::getSpinDuration();
-    return view('wheel', compact('activeBackground', 'spinDuration'));
+    $displayMode = \App\Models\WheelSetting::getDisplayMode();
+    return view('wheel', compact('activeBackground', 'activeLogo', 'spinDuration', 'displayMode'));
 });
 
 // Public API routes for wheel functionality
@@ -38,6 +41,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/participants/{participant}', [ParticipantController::class, 'destroy'])->name('participants.destroy');
     Route::post('/participants/{participant}/config', [ParticipantController::class, 'saveConfig'])->name('participants.config');
     Route::post('/participants/spin-duration', [ParticipantController::class, 'updateSpinDuration'])->name('participants.spin-duration');
+    Route::post('/participants/display-mode', [ParticipantController::class, 'updateDisplayMode'])->name('participants.display-mode');
 
     // Wheel settings (admin only)
     Route::post('/api/config', [WheelController::class, 'upsertConfig']);
@@ -46,6 +50,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/participants/background', [ParticipantController::class, 'uploadBackground'])->name('participants.background.upload');
     Route::post('/participants/background/{background}/activate', [ParticipantController::class, 'activateBackground'])->name('participants.background.activate');
     Route::delete('/participants/background/{background}', [ParticipantController::class, 'deleteBackground'])->name('participants.background.delete');
+
+    // Logo management (admin only)
+    Route::post('/participants/logo/upload', [ParticipantController::class, 'uploadLogo'])->name('participants.logo.upload');
+    Route::post('/participants/logo/{logo}/activate', [ParticipantController::class, 'activateLogo'])->name('participants.logo.activate');
+    Route::delete('/participants/logo/{logo}', [ParticipantController::class, 'deleteLogo'])->name('participants.logo.delete');
+
+    // Winners management (admin only)
+    Route::get('/winners', [WinnerController::class, 'index'])->name('winners.index');
+    Route::post('/winners', [WinnerController::class, 'store'])->name('winners.store');
+    Route::delete('/winners/{winner}', [WinnerController::class, 'destroy'])->name('winners.destroy');
 
     // User management (admin only)
     Route::get('register', [App\Http\Controllers\Auth\RegisteredUserController::class, 'create'])->name('register');
