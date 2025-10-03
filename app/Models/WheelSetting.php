@@ -65,4 +65,20 @@ class WheelSetting extends Model
     {
         return static::setValue('display_mode', $mode);
     }
+
+    /**
+     * Get audio enabled setting
+     */
+    public static function getAudioEnabled()
+    {
+        return static::getValue('audio_enabled', 'true') === 'true';
+    }
+
+    /**
+     * Set audio enabled setting
+     */
+    public static function setAudioEnabled($enabled)
+    {
+        return static::setValue('audio_enabled', $enabled ? 'true' : 'false');
+    }
 }

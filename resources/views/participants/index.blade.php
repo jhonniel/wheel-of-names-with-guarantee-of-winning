@@ -238,6 +238,41 @@
         </form>
     </div>
 
+    <!-- Audio Settings -->
+    <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+        <h3 style="margin-top: 0; margin-bottom: 16px;">Audio Settings</h3>
+        <p style="margin-bottom: 16px; color: #666;">Control audio effects for the wheel spinning:</p>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div>
+                <label>Audio Effects</label>
+                <select id="audioSetting" style="padding: 6px 8px;">
+                    <option value="enabled" {{ $audioEnabled ? 'selected' : '' }}>Enabled</option>
+                    <option value="disabled" {{ !$audioEnabled ? 'selected' : '' }}>Disabled</option>
+                </select>
+            </div>
+            <div>
+                <button onclick="updateAudioSetting()" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Update Audio Setting</button>
+            </div>
+            <div>
+                <button onclick="testAudio()" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">🔊 Test Audio</button>
+            </div>
+            <div>
+                <button onclick="testWheelAudio()" style="background: #6f42c1; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">🎡 Test Wheel Audio</button>
+            </div>
+        </div>
+        <div style="font-size: 12px; color: #666; margin-top: 8px;">
+            <strong>Audio Effects:</strong><br>
+            • <strong>Rolling Sound:</strong> Low-frequency rumble during wheel spinning<br>
+            • <strong>Tick Sounds:</strong> Sharp clicks synchronized with name changes<br>
+            • <strong>Winner Celebration:</strong> Clapping hands + trumpet fanfare when winner is announced<br>
+            • <strong>Realistic Feel:</strong> Makes the wheel sound like a real mechanical device with celebration<br>
+            • <strong>Admin Control:</strong> Only administrators can control audio settings<br><br>
+            <strong>Test Buttons:</strong><br>
+            • <strong>🔊 Test Audio:</strong> Plays a simple beep to test browser audio<br>
+            • <strong>🎡 Test Wheel Audio:</strong> Opens wheel page to test full audio effects
+        </div>
+    </div>
+
     <div class="bulk-actions">
         <button onclick="selectAll()">Select All</button>
         <button onclick="deselectAll()">Deselect All</button>
@@ -556,6 +591,86 @@ function bulkAction(ids, action) {
 
     document.body.appendChild(form);
     form.submit();
+}
+
+// Audio control functions
+function updateAudioSetting() {
+    const audioSetting = document.getElementById('audioSetting').value;
+    const enabled = audioSetting === 'enabled';
+
+    fetch('/participants/audio-setting', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ audio_enabled: enabled })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Audio setting updated successfully!');
+        } else {
+            alert('Error updating audio setting: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating audio setting');
+    });
+}
+
+function testAudio() {
+    // Create a simple audio context for testing
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Create a simple test sound
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        // Set up the sound
+        oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+        oscillator.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+        // Play the sound
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+
+        // Show success message
+        alert('🔊 Audio test successful! You should hear a short beep.');
+
+    } catch (error) {
+        console.error('Audio test failed:', error);
+        alert('❌ Audio test failed. Please check your browser audio settings or try opening the wheel page to test audio there.');
+
+        // Fallback: open wheel page
+        const wheelWindow = window.open('/', '_blank');
+        if (wheelWindow) {
+            wheelWindow.focus();
+        }
+    }
+}
+
+function testWheelAudio() {
+    // Open the wheel page in a new tab to test the actual wheel audio effects
+    const wheelWindow = window.open('/', '_blank');
+
+    if (wheelWindow) {
+        wheelWindow.focus();
+
+        // Show instruction message
+        alert('🎡 Wheel page opened! Click the "Spin" button to test the full audio effects:\n\n• Rolling sound during spinning\n• Tick sounds with name changes\n• Winner celebration sound\n\nMake sure audio is enabled in the dropdown above!');
+    } else {
+        alert('❌ Could not open wheel page. Please check if pop-ups are blocked.');
+    }
 }
 </script>
 </body>

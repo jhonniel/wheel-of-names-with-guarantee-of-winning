@@ -12,7 +12,8 @@ Route::get('/', function () {
     $activeLogo = \App\Models\WheelLogo::getActive();
     $spinDuration = \App\Models\WheelSetting::getSpinDuration();
     $displayMode = \App\Models\WheelSetting::getDisplayMode();
-    return view('wheel', compact('activeBackground', 'activeLogo', 'spinDuration', 'displayMode'));
+    $audioEnabled = \App\Models\WheelSetting::getAudioEnabled();
+    return view('wheel', compact('activeBackground', 'activeLogo', 'spinDuration', 'displayMode', 'audioEnabled'));
 });
 
 // Public API routes for wheel functionality
@@ -42,6 +43,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/participants/{participant}/config', [ParticipantController::class, 'saveConfig'])->name('participants.config');
     Route::post('/participants/spin-duration', [ParticipantController::class, 'updateSpinDuration'])->name('participants.spin-duration');
     Route::post('/participants/display-mode', [ParticipantController::class, 'updateDisplayMode'])->name('participants.display-mode');
+    Route::post('/participants/audio-setting', [ParticipantController::class, 'updateAudioSetting'])->name('participants.audio-setting');
 
     // Wheel settings (admin only)
     Route::post('/api/config', [WheelController::class, 'upsertConfig']);
