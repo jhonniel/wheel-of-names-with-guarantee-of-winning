@@ -81,4 +81,20 @@ class WheelSetting extends Model
     {
         return static::setValue('audio_enabled', $enabled ? 'true' : 'false');
     }
+
+    /**
+     * Get show total entries setting
+     */
+    public static function getShowTotalEntries()
+    {
+        return static::getValue('show_total_entries', 'false') === 'true';
+    }
+
+    /**
+     * Set show total entries setting
+     */
+    public static function setShowTotalEntries($enabled)
+    {
+        return static::setValue('show_total_entries', $enabled ? 'true' : 'false');
+    }
 }

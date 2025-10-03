@@ -21,7 +21,8 @@ class ParticipantController extends Controller
         $spinDuration = WheelSetting::getSpinDuration();
         $displayMode = WheelSetting::getDisplayMode();
         $audioEnabled = WheelSetting::getAudioEnabled();
-        return view('participants.index', compact('participants', 'backgrounds', 'logos', 'spinDuration', 'displayMode', 'audioEnabled'));
+        $showTotalEntries = WheelSetting::getShowTotalEntries();
+        return view('participants.index', compact('participants', 'backgrounds', 'logos', 'spinDuration', 'displayMode', 'audioEnabled', 'showTotalEntries'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -288,6 +289,26 @@ class ParticipantController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update audio setting: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateShowTotalEntries(Request $request)
+    {
+        $request->validate([
+            'show_total_entries' => 'required|boolean',
+        ]);
+
+        try {
+            WheelSetting::setShowTotalEntries($request->show_total_entries);
+            return response()->json([
+                'success' => true,
+                'message' => 'Total entries display setting updated successfully!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update total entries display setting: ' . $e->getMessage()
             ], 500);
         }
     }
