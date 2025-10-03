@@ -157,6 +157,11 @@ const rollerText = document.getElementById('rollerText');
 const rollingBox = document.querySelector('.rolling-box');
 const displayMode = '{{ $displayMode }}';
 
+// Audio system for rolling effects
+let audioContext = null;
+let isAudioEnabled = {{ $audioEnabled ? 'true' : 'false' }};
+let rollingAudioInterval = null;
+
 let segments = [];
 let currentRotation = 0;
 let rollingTimer = null;
@@ -164,6 +169,143 @@ let rollingIndex = 0;
 let currentWinner = null;
 let countdownTimer = null;
 let currentSpinDuration = {{ $spinDuration }};
+
+// Initialize audio system
+function initAudio() {
+  try {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    console.log('Audio system initialized');
+  } catch (error) {
+    console.log('Audio not supported:', error);
+    isAudioEnabled = false;
+    audioContext = null;
+  }
+}
+
+// Create realistic wheel rolling sound
+function createRollingSound() {
+  if (!audioContext || !isAudioEnabled) return null;
+
+  try {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    const filterNode = audioContext.createBiquadFilter();
+
+    // Create a low-frequency rumble with some variation
+    oscillator.type = 'sawtooth';
+    const baseFreq = 60 + Math.random() * 40; // 60-100 Hz for deep rumble
+    oscillator.frequency.setValueAtTime(baseFreq, audioContext.currentTime);
+
+    // Add slight frequency modulation for realism
+    oscillator.frequency.linearRampToValueAtTime(
+      baseFreq + (Math.random() - 0.5) * 20,
+      audioContext.currentTime + 0.1
+    );
+
+    // Low-pass filter to make it sound more like mechanical rolling
+    filterNode.type = 'lowpass';
+    filterNode.frequency.setValueAtTime(200, audioContext.currentTime);
+    filterNode.Q.setValueAtTime(1, audioContext.currentTime);
+
+    // Volume envelope - quick attack, short sustain
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.01);
+    gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+
+    // Connect the audio chain
+    oscillator.connect(filterNode);
+    filterNode.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    return { oscillator, gainNode, filterNode };
+  } catch (error) {
+    console.log('Error creating rolling sound:', error);
+    return null;
+  }
+}
+
+// Create wheel tick sound (for each name change)
+function createTickSound() {
+  if (!audioContext || !isAudioEnabled) return null;
+
+  try {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    // Create a sharp click/tick sound
+    oscillator.type = 'square';
+    const freq = 800 + Math.random() * 400; // 800-1200 Hz
+    oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+
+    // Very short, sharp sound
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.02);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    return { oscillator, gainNode };
+  } catch (error) {
+    console.log('Error creating tick sound:', error);
+    return null;
+  }
+}
+
+// Start rolling audio effect
+function startRollingAudio(interval) {
+  if (!isAudioEnabled || !audioContext) return;
+
+  try {
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+
+    // Clear any existing interval
+    if (rollingAudioInterval) {
+      clearInterval(rollingAudioInterval);
+    }
+
+    // Play rolling sound at the specified interval
+    rollingAudioInterval = setInterval(() => {
+      const rollingSound = createRollingSound();
+      if (rollingSound) {
+        rollingSound.oscillator.start();
+        rollingSound.oscillator.stop(audioContext.currentTime + 0.15);
+      }
+    }, interval);
+  } catch (error) {
+    console.log('Error starting rolling audio:', error);
+  }
+}
+
+// Stop rolling audio effect
+function stopRollingAudio() {
+  if (rollingAudioInterval) {
+    clearInterval(rollingAudioInterval);
+    rollingAudioInterval = null;
+  }
+}
+
+// Play tick sound for name changes
+function playTickSound() {
+  if (!isAudioEnabled || !audioContext) return;
+
+  try {
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+
+    const tickSound = createTickSound();
+    if (tickSound) {
+      tickSound.oscillator.start();
+      tickSound.oscillator.stop(audioContext.currentTime + 0.02);
+    }
+  } catch (error) {
+    console.log('Error playing tick sound:', error);
+  }
+}
+
 
 async function fetchSegments() {
   try {
@@ -411,6 +553,7 @@ function createRealisticSpeedCurve(duration, targetRotation, winnerData) {
 
   let startTime = Date.now();
   let startRotation = currentRotation;
+  let lastTickTime = 0;
 
   // Function to update rolling text - cycle through names like wheelofnames.com
   function updateRollingText() {
@@ -431,10 +574,22 @@ function createRealisticSpeedCurve(duration, targetRotation, winnerData) {
         if (rollerText) {
           rollerText.textContent = segments[rollingIndex].label;
         }
+
+        // Play tick sound synchronized with name changes
+        if (elapsed - lastTickTime >= 50) { // Match the 50ms interval
+          playTickSound();
+          lastTickTime = elapsed;
+        }
       } else {
         // In final phase, show the winner determined by the backend
         if (winnerData && winnerData.winner && winnerData.winner.label && rollerText) {
           rollerText.textContent = winnerData.winner.label;
+        }
+
+        // Play final tick sound
+        if (elapsed - lastTickTime >= 50) {
+          playTickSound();
+          lastTickTime = elapsed;
         }
       }
   }
@@ -444,6 +599,9 @@ function createRealisticSpeedCurve(duration, targetRotation, winnerData) {
     clearInterval(rollingTimer);
   }
   rollingTimer = setInterval(updateRollingText, 50); // Fast rolling updates
+
+  // Start rolling audio effect
+  startRollingAudio(100); // Play rolling sound every 100ms
 
   // Start slowing down
   setTimeout(() => {
@@ -476,6 +634,9 @@ function createRealisticSpeedCurve(duration, targetRotation, winnerData) {
       clearInterval(rollingTimer);
       rollingTimer = null;
     }
+
+    // Stop rolling audio effect
+    stopRollingAudio();
 
     // Ensure the final rolling text shows the correct winner from backend
     // Use the winner that was already determined by the backend instead of calculating
@@ -641,6 +802,9 @@ window.addEventListener('resize', () => {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize audio system
+  initAudio();
+
   updateWheelSize();
   fetchSegments();
 

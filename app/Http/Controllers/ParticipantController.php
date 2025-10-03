@@ -20,7 +20,8 @@ class ParticipantController extends Controller
         $logos = WheelLogo::orderBy('created_at', 'desc')->get();
         $spinDuration = WheelSetting::getSpinDuration();
         $displayMode = WheelSetting::getDisplayMode();
-        return view('participants.index', compact('participants', 'backgrounds', 'logos', 'spinDuration', 'displayMode'));
+        $audioEnabled = WheelSetting::getAudioEnabled();
+        return view('participants.index', compact('participants', 'backgrounds', 'logos', 'spinDuration', 'displayMode', 'audioEnabled'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -268,6 +269,26 @@ class ParticipantController extends Controller
             return back()->with('status', 'Display mode updated successfully!');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to update display mode: ' . $e->getMessage());
+        }
+    }
+
+    public function updateAudioSetting(Request $request)
+    {
+        $request->validate([
+            'audio_enabled' => 'required|boolean',
+        ]);
+
+        try {
+            WheelSetting::setAudioEnabled($request->audio_enabled);
+            return response()->json([
+                'success' => true,
+                'message' => 'Audio setting updated successfully!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update audio setting: ' . $e->getMessage()
+            ], 500);
         }
     }
 
