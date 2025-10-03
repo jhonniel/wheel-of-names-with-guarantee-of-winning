@@ -111,6 +111,15 @@
             {{ session('error') }}
         </div>
     @endif
+    @if($showTotalEntries)
+        <!-- Total Entries Display -->
+        <div id="totalEntriesDisplay" style="margin-bottom: 16px; text-align: center;">
+            <div style="font-size: 18px; font-weight: bold; color: #333; background: rgba(255,255,255,0.9); padding: 12px 24px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                <span id="totalEntriesText">Total Entries: <span id="totalEntriesCount">0</span></span>
+            </div>
+        </div>
+    @endif
+
     @if($displayMode === 'rolling' || $displayMode === 'both')
         <div class="rolling-box"><span id="rollerText" class="rolling-text"></span></div>
     @endif
@@ -315,6 +324,7 @@ async function fetchSegments() {
     console.log('Fetched segments:', segments.length);
     updateWheelSize();
     renderWheel();
+    updateTotalEntriesDisplay();
     // Initialize roller with random name if available
     if (segments.length && rollerText) {
       const randomIndex = Math.floor(Math.random() * segments.length);
@@ -358,6 +368,13 @@ function updateWheelSize() {
   // Update viewBox to match size
   const halfSize = size / 2;
   wheel.setAttribute('viewBox', `-${halfSize} -${halfSize} ${size} ${size}`);
+}
+
+function updateTotalEntriesDisplay() {
+  const totalEntriesCount = document.getElementById('totalEntriesCount');
+  if (totalEntriesCount) {
+    totalEntriesCount.textContent = segments.length;
+  }
 }
 
 function renderWheel() {

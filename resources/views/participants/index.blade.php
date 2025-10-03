@@ -273,6 +273,30 @@
         </div>
     </div>
 
+    <!-- Total Entries Display Settings -->
+    <div style="margin-top: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
+        <h3 style="margin-top: 0; margin-bottom: 16px;">Display Settings</h3>
+        <p style="margin-bottom: 16px; color: #666;">Control what information is shown on the main wheel page:</p>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div>
+                <label>Show Total Entries</label>
+                <select id="showTotalEntriesSetting" style="padding: 6px 8px;">
+                    <option value="enabled" {{ $showTotalEntries ? 'selected' : '' }}>Enabled</option>
+                    <option value="disabled" {{ !$showTotalEntries ? 'selected' : '' }}>Disabled</option>
+                </select>
+            </div>
+            <div>
+                <button onclick="updateShowTotalEntriesSetting()" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Update Display Setting</button>
+            </div>
+        </div>
+        <div style="font-size: 12px; color: #666; margin-top: 8px;">
+            <strong>Total Entries Display:</strong><br>
+            • <strong>Enabled:</strong> Shows the total number of participants on the main wheel page<br>
+            • <strong>Disabled:</strong> Hides the total count from the main wheel page<br>
+            • <strong>Admin Control:</strong> Only administrators can control this setting
+        </div>
+    </div>
+
     <div class="bulk-actions">
         <button onclick="selectAll()">Select All</button>
         <button onclick="deselectAll()">Deselect All</button>
@@ -671,6 +695,33 @@ function testWheelAudio() {
     } else {
         alert('❌ Could not open wheel page. Please check if pop-ups are blocked.');
     }
+}
+
+// Total entries display control functions
+function updateShowTotalEntriesSetting() {
+    const showTotalEntriesSetting = document.getElementById('showTotalEntriesSetting').value;
+    const enabled = showTotalEntriesSetting === 'enabled';
+
+    fetch('/participants/show-total-entries', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ show_total_entries: enabled })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Total entries display setting updated successfully!');
+        } else {
+            alert('Error updating total entries display setting: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating total entries display setting');
+    });
 }
 </script>
 </body>
